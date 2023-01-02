@@ -1,37 +1,49 @@
 classdef LinearMPC < handle
-    % LINEARMPC implements a constrained linear-quadratic MPC using OSQP.
+    % LINEARMPC implement constrained linear-quadratic Model Predicitve Control.
     %
     % LinearMPC solves the following problem:
     %
-    %   min (x_N - x_r)^T*Q_N*(x_N - x_r) + ...
-    %       \sum_(k=0)^(N-1) (x_k - x_r)^T*Q*(x_k - x_r) u_k^T*R*u_k
+    %   minimize (x(N) - x_r)^T*Q_N*(x(N) - x_r) + ...
+    %       \sum_(k=0)^(N-1) (x(k) - x_r)^T*Q*(x(k) - x_r) + u(k)^T*R*u(k)
     %
-    %      s.t. x_(k+1) = A*x_k + B*u_k
-    %           x_min <= x_k <= x_max
-    %           u_min <= u_k <= u_max
-    %           x_0 = \bar{x}
+    %      s.t. x(k+1) = A*x(k) + B*u(k)
+    %           x_min <= x(k) <= x_max
+    %           u_min <= u(k) <= u_max
+    %           x(0) = \bar{x}
     %
     % Author: Gabriele Nava, gabriele.nava@iit.it
-    % Dec. 2022
+    % Jan. 2023
     %
     properties
-        P
-        q
-        A
-        l
-        u
-        solver
+        H
+        g
+        Aeq
+        leq
+        ueq
+        ub
+        lb
+        opts
+        debug
     end
 
     methods
-        function obj = LinearMPC()
+        function obj = LinearMPC(varargin)
 
-            obj.P      = [];
-            obj.q      = [];
-            obj.A      = [];
-            obj.l      = [];
-            obj.u      = [];
-            obj.solver = [];
+            obj.H     = [];
+            obj.g     = [];
+            obj.Aeq   = [];
+            obj.leq   = [];
+            obj.ueq   = [];
+            obj.ub    = [];
+            obj.lb    = [];
+            obj.opts  = optimset();
+
+            switch nargin
+              case 1
+                obj.debug = varargin{1};
+              otherwise
+                obj.debug = false;
+            endswitch
         end
 
         function [] = setup(obj, var)
@@ -39,8 +51,8 @@ classdef LinearMPC < handle
             % setup the MPC problem. Required inputs:
             %
             % var.N     = number of steps;
-            % var.Ax    = matrix A of the system \dot{x} = Ax + Bu
-            % var.Bu    = matrix B of the system \dot{x} = Ax + Bu
+            % var.A     = matrix A of the system \dot{x} = Ax + Bu
+            % var.B     = matrix B of the system \dot{x} = Ax + Bu
             % var.Q_N   = weight of final cost
             % var.Q     = weight of the step-by-step cost
             % var.R     = weight of the input cost
@@ -50,10 +62,11 @@ classdef LinearMPC < handle
             % var.x_max = state upper bound
             % var.u_min = input lower bound
             % var.u_max = input upper bound
+            % var.opts  = QP problem options
             %
             N     = var.N;
-            Ax    = var.Ax;
-            Bu    = var.Bu;
+            A     = var.A;
+            B     = var.B;
             Q_N   = var.Q_N;
             Q     = var.Q;
             R     = var.R;
@@ -64,101 +77,115 @@ classdef LinearMPC < handle
             u_min = var.u_min;
             u_max = var.u_max;
 
-            % compute the hessian
+            % compute the Hessian matrix
             %
-            % input state y is:
+            % input state of the MPC problem is:
             %
-            %   y = [x(0); x(1); ...; x(N); u(0); ...; u(N-1)]
+            %   x = [x(0); x(1); ...; x(N); u(0); ...; u(N-1)]
             %
             % so, the Hessian must be build as follows:
             %
-            %   P = [Q   0 ... R ... 0;
+            %   H = [Q   0 ... R ... 0;
             %        0   Q ... 0 ... 0;
             %              ...
             %        0   0 ... 0 ... R];
             %
-            Px    = kron(eye(N), Q);
-            Pu    = kron(eye(N), R);
-            Pxn   = Q_N;
-            obj.P = blkdiag(Px, Pxn, Pu);
+            Hx    = kron(eye(N), Q);
+            Hu    = kron(eye(N), R);
+            Hxn   = Q_N;
+            obj.H = blkdiag(Hx, Hxn, Hu);
 
             % compute the gradient
             %
-            % must be build as
+            % the gradient must be build as
             %
-            %   q = [-Q*x_r; ...; -Qf*x_r; ...; 0]
+            %   h = [-Q*x_r; ...; -Q_N*x_r; ...; 0]
             %
-            % the term x_r'*Q*x_r does not affect the gradient
+            % note: the term x_r'*Q*x_r does not affect the QP solution
             %
-            qx    =  repmat(-Q*x_r, N, 1);
-            qu    = -Q_N*x_r;
-            qxn   =  zeros(N*size(Bu, 2), 1);
-            obj.q = [qx; qxn; qu];
+            gx    =  repmat(-Q*x_r, N, 1);
+            gxn   = -Q_N*x_r;
+            gu    =  zeros(N*size(B, 2), 1);
+            obj.g = [gx; gxn; gu];
 
             % compute the constraints
             %
-            % linear dynamics and initial conditions
+            % equality constraints: linear dynamics and initial conditions
             %
-            %   expand the linear dynamics constraint to each state
-            %
-            %     0 = -x_(k+1) + A*x_k + B*u_k (dynamics)
+            %     0 = -x(k+1) + A*x(k) + B*u(k) (dynamics)
             %
             %     A_dyn = [-1   0 ... 0  0
-            %               Ax -1 ... 0  0
-            %               0   0 ... Ax -1]
+            %               A  -1 ... 0  0
+            %               0   0 ... A -1]
             %
-            %     B_dyn = [0 0  ... 0
-            %              0 Bu ... 0
-            %              0 0  ... Bu]
+            %     B_dyn = [0  0  ... 0
+            %              0  B  ... 0
+            %              0  0  ... B]
             %
             %     leq = ueq = [-x0; 0; 0]
             %
-            A_dyn = kron(eye(N+1), -eye(size(Ax,1))) + kron(diag(ones(N, 1), -1), Ax);
-            B_dyn = kron([zeros(1, N); eye(N)], Bu);
-            Aeq   = [A_dyn, B_dyn];
-            leq   = [-x_0; zeros(N*size(Ax,1), 1)];
-            ueq   = leq;
+            A_dyn   = kron(eye(N+1), -eye(size(A,1))) + kron(diag(ones(N, 1), -1), A);
+            B_dyn   = kron([zeros(1, N); eye(N)], B);
+            obj.Aeq = [A_dyn, B_dyn];
+            obj.leq = [-x_0; zeros(N*size(A,1), 1)];
+            obj.ueq = obj.leq;
 
             % compute the bounds on state and input
-            Aineq = eye((N+1)*size(Ax,1) + N*size(Bu,2));
-            lineq = [repmat(x_min, N+1, 1); repmat(u_min, N, 1)];
-            uineq = [repmat(x_max, N+1, 1); repmat(u_max, N, 1)];
+            obj.lb  = [repmat(x_min, N+1, 1); repmat(u_min, N, 1)];
+            obj.ub  = [repmat(x_max, N+1, 1); repmat(u_max, N, 1)];
 
-            % formulate OSQP constraints
-            obj.A = [Aeq; Aineq];
-            obj.l = [leq; lineq];
-            obj.u = [ueq; uineq];
-
-            % setup the OSQP problem
-            obj.solver = osqp();
-            obj.solver.setup(obj.P, obj.q, obj.A, obj.l, obj.u, 'warm_start', true);
+            % setup the QP problem options
+            obj.opts = var.opts;
         end
 
-        function [] = update(obj, x_0)
+        function [] = update(obj, var)
 
-            % update the MPC problem.
+            % update the MPC problem. Required inputs:
             %
-            % WARNING! For the moment, only the initial state x_0 can be
-            % updated with this method. The reason is that the call to
-            % osqp.update() does not always work fine for the Hessian and
-            % gradient. If you need to update variables other than the
-            % initial state, use obj.setup().
+            % var.N     = number of steps;
+            % var.Q_N   = weight of final cost
+            % var.Q     = weight of the step-by-step cost
+            % var.x_r   = reference state
+            % var.x_0   = initial state
             %
-            obj.l(1:length(x_0)) = -x_0;
-            obj.u(1:length(x_0)) = -x_0;
+            N     = var.N;
+            Q_N   = var.Q_N;
+            Q     = var.Q;
+            x_r   = var.x_r;
+            x_0   = var.x_0;
 
-            obj.solver.update('l', obj.l, 'u', obj.u);
+            % update initial conditions
+            obj.leq(1:length(x_0)) = -x_0;
+            obj.ueq(1:length(x_0)) = -x_0;
+
+            % recompute the gradient
+            obj.g(1:length(x_r)*N) = repmat(-Q*x_r, N, 1);
+            obj.g(length(x_r)*N+1:length(x_r)*(N+1)) = -Q_N*x_r;
         end
 
         function u_star = solve(obj)
 
             % solve the MPC problem
-            sol    = obj.solver.solve();
-            u_star = sol.x;
+            [u_star, ~, info, ~] = qp([], obj.H, obj.g, [], [], obj.lb, obj.ub, ...
+                                      obj.leq, obj.Aeq, obj.ueq, obj.opts);
 
-            if ~strcmp(sol.info.status, 'solved')
-                error('OSQP did not solve the problem!')
+            switch info.info
+              case 0
+                if obj.debug
+                  disp('Global solution found.')
+                endif
+              case 1
+                if obj.debug
+                  warning('Problem is non convex, but local solution found.')
+                endif
+              case 2
+                error('Problem is non convex and unbounded.')
+              case 3
+                error('Max number of iterations reached.')
+              otherwise
+                error('Problem is unfeasible.')
             end
         end
     end
 end
+
