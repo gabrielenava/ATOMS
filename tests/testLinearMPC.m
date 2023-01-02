@@ -33,8 +33,8 @@ var.B     = B;
 var.Q_N   = diag([2; 2; 2e3; 2e3]);
 var.Q     = diag([1; 1; 1e3; 1e3]);
 var.R     = 0.1*eye(n_u);
-var.x_r   = [sin(0); 2*cos(0); cos(0); -2*sin(0)];
-var.x_0   = [[0; 2]; [1; 0]];
+var.x_r   = [0; 0; 0; 0];
+var.x_0   = [[3; -3]; [1; -1]];
 var.x_min = [-2*pi; -2*pi; -100*pi/180; -100*pi/180];
 var.x_max = [ 2*pi;  2*pi;  100*pi/180;  100*pi/180];
 var.u_min = [-50; -50];
@@ -46,7 +46,7 @@ opti.setup(var);
 
 % simulate the problem in closed loop
 time     = 0;
-n_sim    = 30;
+n_sim    = 20;
 y        = zeros(n_sim, 2*n_x);
 y_r      = zeros(n_sim, 2*n_x);
 
@@ -60,10 +60,9 @@ for k = 1:n_sim
     u       = u_star((var.N+1)*n_x+1:(var.N+1)*n_x+n_u);
     var.x_0 = A*var.x_0 + B*u;
 
-    % update the reference trajectory
+    % update the reference trajectory (WORK IN PROGRESS!!)
     y_r(k, :) = var.x_r;
     time      = time + 0.1;
-    var.x_r   = [sin(2*pi*time); 2*cos(2*pi*time); cos(2*pi*time); -2*sin(2*pi*time)];
 
     opti.update(var);
 endfor
@@ -80,7 +79,8 @@ for i = 1:2*n_x
   plot(0:n_sim-1, y(:,i), '.k', 'markersize', 12)
   plot(0:n_sim-1, y_r(:,i), '--b', 'linewidth', 2)
   xlabel('iters')
-  ylabel(['state ' num2str(i)])
+  ylabel(['y(' num2str(i), ')'])
+  title(['State ' num2str(i)])
 endfor
 
 rmpath('./../src/')

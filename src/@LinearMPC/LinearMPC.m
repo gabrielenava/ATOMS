@@ -1,5 +1,7 @@
 classdef LinearMPC < handle
     % LINEARMPC implement constrained linear-quadratic Model Predicitve Control.
+    %           The expected input system is a linear time-invariant system
+    %           of the form x(k+1) = A*x(k) + B*u(k).
     %
     % LinearMPC solves the following problem:
     %
