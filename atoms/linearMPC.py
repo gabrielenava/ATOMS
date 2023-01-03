@@ -1,3 +1,4 @@
+'''
 classdef LinearMPC < handle
     % LINEARMPC implement constrained linear-quadratic Model Predicitve Control.
     %           The expected input system is a linear time-invariant system
@@ -190,4 +191,21 @@ classdef LinearMPC < handle
         end
     end
 end
+'''''
 
+
+class LinearMPC:
+    """
+    Features class: add, remove, generate new features for the anomaly detection classifier. The Features class does not
+                    need data: it is used instead to list all features names, relationships, ranges.
+    """
+    def __init__(self):
+        self.data_list = []
+        self.features_list = []
+        self.data_features_relations = []
+
+    def __str__(self):
+        return f" Features class object \n" \
+               f" List of data: {self.data_list} \n" \
+               f" List of features: {self.features_list} \n" \
+               f" Features-data relationships: {self.data_features_relations}"

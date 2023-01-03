@@ -1,3 +1,4 @@
+'''
 close all
 clear all
 clc
@@ -85,4 +86,10 @@ endfor
 
 rmpath('./../src/')
 disp('Done!')
+'''
 
+from atoms import LinearMPC
+
+lin = LinearMPC()
+
+print(lin)
