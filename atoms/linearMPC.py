@@ -193,19 +193,28 @@ classdef LinearMPC < handle
 end
 '''''
 
+import osqp
+import numpy as np
+from scipy import sparse as sp
+
 
 class LinearMPC:
     """
-    Features class: add, remove, generate new features for the anomaly detection classifier. The Features class does not
-                    need data: it is used instead to list all features names, relationships, ranges.
+    LinearMPC class: implements a constrained linear-quadratic MPC via OSQP.
+
+        The class solves the following optimal control problem:
+
+            minimize (x(N)-x_r)^T*QN*(x(N)-x_r) + sum_{k=1}^{N-1}[(x(k)-x_r)^T*Q*(x(k)-x_r) + u(k)^T*R*u(k)]
+                  s.t.
+                      x(k+1) = A*x(k) + B*u(k)
+                      x_min <= x(k) <= x_max
+                      u_min <= u(k) <= u_max
     """
     def __init__(self):
-        self.data_list = []
-        self.features_list = []
-        self.data_features_relations = []
+        self.variables = {}
 
     def __str__(self):
-        return f" Features class object \n" \
-               f" List of data: {self.data_list} \n" \
-               f" List of features: {self.features_list} \n" \
-               f" Features-data relationships: {self.data_features_relations}"
+        return f" LinearMPC class object \n" \
+               f" System state size: {self.variables} \n" \
+               f" Input vector size: {self.variables} \n" \
+               f" Number of steps: {self.variables}"
