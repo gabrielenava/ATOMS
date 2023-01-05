@@ -1,78 +1,81 @@
 import numpy as np
-from scipy import sparse
 from atoms import LinearMPC
+from matplotlib import pyplot as plt
 
-# Discrete time model of a quadcopter
-Ad = sparse.csc_matrix([
-  [1.,      0.,     0., 0., 0., 0., 0.1,     0.,     0.,  0.,     0.,     0.],
-  [0.,      1.,     0., 0., 0., 0., 0.,      0.1,    0.,  0.,     0.,     0.],
-  [0.,      0.,     1., 0., 0., 0., 0.,      0.,     0.1, 0.,     0.,     0.],
-  [0.0488,  0.,     0., 1., 0., 0., 0.0016,  0.,     0.,  0.0992, 0.,     0.],
-  [0.,     -0.0488, 0., 0., 1., 0., 0.,     -0.0016, 0.,  0.,     0.0992, 0.],
-  [0.,      0.,     0., 0., 0., 1., 0.,      0.,     0.,  0.,     0.,     0.0992],
-  [0.,      0.,     0., 0., 0., 0., 1.,      0.,     0.,  0.,     0.,     0.],
-  [0.,      0.,     0., 0., 0., 0., 0.,      1.,     0.,  0.,     0.,     0.],
-  [0.,      0.,     0., 0., 0., 0., 0.,      0.,     1.,  0.,     0.,     0.],
-  [0.9734,  0.,     0., 0., 0., 0., 0.0488,  0.,     0.,  0.9846, 0.,     0.],
-  [0.,     -0.9734, 0., 0., 0., 0., 0.,     -0.0488, 0.,  0.,     0.9846, 0.],
-  [0.,      0.,     0., 0., 0., 0., 0.,      0.,     0.,  0.,     0.,     0.9846]])
+"""
+Consider a discrete-time double integrator model of the form:
 
-Bd = sparse.csc_matrix([
-  [0.,      -0.0726,  0.,     0.0726],
-  [-0.0726,  0.,      0.0726, 0.],
-  [-0.0152,  0.0152, -0.0152, 0.0152],
-  [-0.,     -0.0006, -0.,     0.0006],
-  [0.0006,   0.,     -0.0006, 0.0000],
-  [0.0106,   0.0106,  0.0106, 0.0106],
-  [0,       -1.4512,  0.,     1.4512],
-  [-1.4512,  0.,      1.4512, 0.],
-  [-0.3049,  0.3049, -0.3049, 0.3049],
-  [-0.,     -0.0236,  0.,     0.0236],
-  [0.0236,   0.,     -0.0236, 0.],
-  [0.2107,   0.2107,  0.2107, 0.2107]])
+  x_1(k) = x_1(0) + sum_{j=1}^{k-1} x_2(j)
+  x_2(k) = x_2(0) + sum_{j=1}^{k-1} u(j)
 
-[nx, nu] = Bd.shape
+Rewrite the problem in its state-space form:
 
-# Constraints
-u0 = 10.5916
-umin = np.array([9.6, 9.6, 9.6, 9.6]) - u0
-umax = np.array([13., 13., 13., 13.]) - u0
-xmin = np.array([-np.pi/6, -np.pi/6, -np.inf, -np.inf, -np.inf, -1.,
-                 -np.inf, -np.inf, -np.inf, -np.inf, -np.inf, -np.inf])
-xmax = np.array([np.pi/6, np.pi/6, np.inf, np.inf, np.inf, np.inf,
-                np.inf, np.inf, np.inf, np.inf, np.inf, np.inf])
+  y(k)   = [x_1(k); x_2(k)]
+  y(k+1) = A*y(k) + B*u(k) = [1 1; 0 1]*y(k) + [0; 1]*u(k)
 
-# Objective function
-Q = sparse.diags([0., 0., 10., 10., 10., 10., 0., 0., 0., 5., 5., 5.])
-QN = Q
-R = 0.1*sparse.eye(4)
+Setup a constrained linear-quadratic MPC problem to stabilize the system about a set point.
+"""
+print("Testing LinearMPC class...")
 
-# Initial and reference states
-x0 = np.zeros(12)
-xr = np.array([0., 0., 1., 0., 0., 0., 0., 0., 0., 0., 0., 0.])
+n_x = 2
+n_u = 2
 
-# Prediction horizon
-N = 10
+A = np.block([[np.eye(n_x), np.eye(n_x)],
+              [np.zeros((n_x, n_x)), np.eye(n_x)]])
 
-# Set up the MPC problem
-variables = {'Ax': Ad, 'Bu': Bd, 'u_min': umin, 'u_max': umax, 'x_min': xmin, 'x_max': xmax,
-             'Q': Q, 'QN': QN, 'R': R, 'x_0': x0, 'x_r': xr, 'N': N}
+B = np.block([[np.zeros((n_x, n_u))], [np.eye(n_u)]])
 
-mpc = LinearMPC()
-mpc.setup(variables)
+# set up the MPC problem
+var = {}
+var.update({'N': 10})
+var.update({'Ax': A})
+var.update({'Bu': B})
+var.update({'QN': np.diag([2, 2, 1, 1], k=0)})
+var.update({'Q': np.diag([2, 2, 1, 1], k=0)})
+var.update({'R': 15*np.eye(n_u)})
+var.update({'x_r': np.array([0.5, 0.5, 0, 0])})
+var.update({'x_0': np.array([1, -1, 0, 0])})
+var.update({'x_min': np.array([-2*np.pi, -2*np.pi, -100*np.pi/180, -100*np.pi/180])})
+var.update({'x_max': np.array([2*np.pi,  2*np.pi,  100*np.pi/180,  100*np.pi/180])})
+var.update({'u_min': np.array([-50, -50])})
+var.update({'u_max': np.array([50, 50])})
 
-# Simulate in closed loop
-nsim = 15
+opti = LinearMPC()
+opti.setup(var)
 
-for i in range(nsim):
+# simulate the problem in closed loop
+time = 0
+n_sim = 80
+y = np.zeros((n_sim, 2*n_x))
+y_r = np.zeros((n_sim, 2*n_x))
 
-    # Solve the MPC problem
-    res = mpc.solve()
+for i in range(n_sim):
 
-    # Apply first control input to the plant
-    ctrl = res[-N*nu:-(N-1)*nu]
-    x0 = Ad.dot(x0) + Bd.dot(ctrl)
+    # solve the problem
+    u_star = opti.solve()
 
-    # Update the MPC problem
-    variables.update({'x_0': x0})
-    mpc.update(variables)
+    # apply first control input and update initial conditions
+    y[i, :] = var['x_0']
+    u = u_star[(var['N']+1)*n_x:(var['N']+1)*n_x+n_u]
+    x_0 = A.dot(var['x_0']) + B.dot(u)
+    var.update({'x_0': x_0})
+
+    # update the reference trajectory (WORK IN PROGRESS)
+    y_r[i, :] = var['x_r']
+    opti.update(var)
+
+# plot the results
+fig, axs = plt.subplots(2, 2)
+cont = 0
+
+for i in range(n_x):
+    for j in range(n_x):
+        axs[i, j].plot(range(n_sim), y[:, cont], range(n_sim), y_r[:, cont])
+        axs[i, j].set_xlabel('iters')
+        axs[i, j].set_ylabel('data')
+        axs[i, j].grid(True)
+        fig.tight_layout()
+        cont = cont + 1
+
+plt.show()
+print("Done!")
