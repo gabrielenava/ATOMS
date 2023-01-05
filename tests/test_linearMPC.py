@@ -15,8 +15,8 @@ Rewrite the problem in its state-space form:
 
 Setup a constrained linear-quadratic MPC problem to stabilize the system about a set point.
 """
-print("Testing LinearMPC class...")
 
+print("Testing LinearMPC class...")
 n_x = 2
 n_u = 2
 
@@ -30,10 +30,10 @@ var = {}
 var.update({'N': 10})
 var.update({'Ax': A})
 var.update({'Bu': B})
-var.update({'QN': np.diag([2, 2, 1, 1], k=0)})
+var.update({'QN': np.diag([20, 20, 10, 10], k=0)})
 var.update({'Q': np.diag([2, 2, 1, 1], k=0)})
-var.update({'R': 15*np.eye(n_u)})
-var.update({'x_r': np.array([0.5, 0.5, 0, 0])})
+var.update({'R': 50*np.eye(n_u)})
+var.update({'x_r': np.array([np.cos(2*np.pi*0), -np.cos(2*np.pi*0), 0, 0])})
 var.update({'x_0': np.array([1, -1, 0, 0])})
 var.update({'x_min': np.array([-2*np.pi, -2*np.pi, -100*np.pi/180, -100*np.pi/180])})
 var.update({'x_max': np.array([2*np.pi,  2*np.pi,  100*np.pi/180,  100*np.pi/180])})
@@ -60,8 +60,11 @@ for i in range(n_sim):
     x_0 = A.dot(var['x_0']) + B.dot(u)
     var.update({'x_0': x_0})
 
-    # update the reference trajectory (WORK IN PROGRESS)
-    y_r[i, :] = var['x_r']
+    # update the reference trajectory
+    time = time + 0.025
+    x_r = np.array([np.cos(2*np.pi*time), -np.cos(2*np.pi*time), 0, 0])
+    y_r[i, :] = x_r
+    var.update({'x_r': x_r})
     opti.update(var)
 
 # plot the results
