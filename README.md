@@ -5,4 +5,7 @@ ATOMS is an Python-Based collection of useful tools to operate with systems of r
 
 ### List of dependencies
 
+#### LinearMPC class
 - [osqp](https://osqp.org/)
+- [numpy](https://numpy.org/)
+- [scipy](https://scipy.org/)
