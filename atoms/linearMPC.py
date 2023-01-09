@@ -27,8 +27,8 @@ class LinearMPC:
         """
         Cast the MPC problem to a QP.
         :param variables: list of variables to be passed to the QP. It must include:
-            - Ax = state matrix from x(k+1) = A*x(k) + B*u(k)
-            - Bu = input matrix from x(k+1) = A*x(k) + B*u(k)
+            - Ax = state matrix such that x(k+1) = A*x(k) + B*u(k)
+            - Bu = input matrix such that x(k+1) = A*x(k) + B*u(k)
             - x_min = lower limits on x
             - x_max = upper limits on x
             - u_min = lower limits on u
@@ -54,6 +54,9 @@ class LinearMPC:
         Ax = variables['Ax']
         Bu = variables['Bu']
         [n_x, n_u] = Bu.shape
+
+        # save useful variables
+        self.variables.update({'N': N, 'Q': Q, 'QN': QN, 'n_x': n_x})
 
         # set the Hessian matrix. Format:
         #
@@ -108,24 +111,24 @@ class LinearMPC:
         # set up the OSQP problem
         self.solver.setup(P, q, A, l, u, warm_start=True)
 
-    def update(self, variables):
+    def update(self, **kwargs):
         """
         Update the MPC problem. Can update both the initial conditions and the reference state.
-        :param variables: list of variables to be passed to the QP. It must include:
-            - x_r = reference state
+        Input must include:
             - x_0 = initial state
-            - N = number of steps
-            - Q = weight on state error
-            - QN = weight on final state error
-            - R = weight on input
+            - x_r = reference state
         """
         # demux variables
-        N = variables['N']
-        Q = variables['Q']
-        QN = variables['QN']
-        x_r = variables['x_r']
-        x_0 = variables['x_0']
-        n_x = len(x_0)
+        N = self.variables['N']
+        Q = self.variables['Q']
+        QN = self.variables['QN']
+        n_x = self.variables['n_x']
+
+        for k, v in kwargs.items():
+            if k == 'x_0':
+                x_0 = v
+            if k == 'x_r':
+                x_r = v
 
         # update initial state
         l = self.variables['l']

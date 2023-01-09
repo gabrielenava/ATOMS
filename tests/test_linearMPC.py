@@ -19,6 +19,7 @@ Setup a constrained linear-quadratic MPC problem to stabilize the system about a
 print("Testing LinearMPC class...")
 n_x = 2
 n_u = 2
+time = 0
 
 A = np.block([[np.eye(n_x), np.eye(n_x)],
               [np.zeros((n_x, n_x)), np.eye(n_x)]])
@@ -27,25 +28,24 @@ B = np.block([[np.zeros((n_x, n_u))], [np.eye(n_u)]])
 
 # set up the MPC problem
 var = {}
-var.update({'N': 10})
+var.update({'N': 6})
 var.update({'Ax': A})
 var.update({'Bu': B})
 var.update({'QN': np.diag([20, 20, 10, 10], k=0)})
 var.update({'Q': np.diag([2, 2, 1, 1], k=0)})
-var.update({'R': 50*np.eye(n_u)})
-var.update({'x_r': np.array([np.cos(2*np.pi*0), -np.cos(2*np.pi*0), 0, 0])})
-var.update({'x_0': np.array([1, -1, 0, 0])})
+var.update({'R': 15*np.eye(n_u)})
+var.update({'x_r': np.array([np.cos(2*np.pi*time), -np.cos(2*np.pi*time), 0, 0])})
+var.update({'x_0': np.array([0.8, -0.8, 0, 0])})
 var.update({'x_min': np.array([-2*np.pi, -2*np.pi, -100*np.pi/180, -100*np.pi/180])})
 var.update({'x_max': np.array([2*np.pi,  2*np.pi,  100*np.pi/180,  100*np.pi/180])})
-var.update({'u_min': np.array([-50, -50])})
-var.update({'u_max': np.array([50, 50])})
+var.update({'u_min': np.array([-5, -5])})
+var.update({'u_max': np.array([5, 5])})
 
 opti = LinearMPC()
 opti.setup(var)
 
 # simulate the problem in closed loop
-time = 0
-n_sim = 80
+n_sim = 250
 y = np.zeros((n_sim, 2*n_x))
 y_r = np.zeros((n_sim, 2*n_x))
 
@@ -65,7 +65,7 @@ for i in range(n_sim):
     x_r = np.array([np.cos(2*np.pi*time), -np.cos(2*np.pi*time), 0, 0])
     y_r[i, :] = x_r
     var.update({'x_r': x_r})
-    opti.update(var)
+    opti.update(x_r=x_r, x_0=x_0)
 
 # plot the results
 fig, axs = plt.subplots(2, 2)
