@@ -56,7 +56,7 @@ for i in range(n_sim):
 
     # apply first control input and update initial conditions
     y[i, :] = var['x_0']
-    u = u_star[(var['N']+1)*n_x:(var['N']+1)*n_x+n_u]
+    u = u_star[(var['N']+1)*2*n_x:(var['N']+1)*2*n_x+n_u]
     x_0 = A.dot(var['x_0']) + B.dot(u)
     var.update({'x_0': x_0})
 
