@@ -13,7 +13,7 @@ Rewrite the problem in its state-space form:
   y(k)   = [x_1(k); x_2(k)]
   y(k+1) = A*y(k) + B*u(k) = [1 1; 0 1]*y(k) + [0; 1]*u(k)
 
-Setup a constrained linear-quadratic MPC problem to stabilize the system about a set point.
+Setup a constrained linear-quadratic MPC problem to stabilize the system using multiple shooting.
 """
 
 print("Testing LinearMPC class...")

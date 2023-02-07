@@ -5,7 +5,7 @@ from scipy import sparse as sp
 
 class LinearMPC:
     """
-    LinearMPC class: implements a constrained linear-quadratic MPC via OSQP.
+    LinearMPC class: implements a multiple-shooting, constrained linear-quadratic MPC via OSQP.
 
         The class solves the following optimal control problem:
 
