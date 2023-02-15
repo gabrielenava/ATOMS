@@ -6,3 +6,4 @@ Advanced Tools for Multi-body Systems.
   Author: Gabriele Nava, gabriele.nava@iit.it, Jan. 2023
 """
 from .linearMPC import LinearMPC
+from .kalmanFIlter import KalmanFilter
