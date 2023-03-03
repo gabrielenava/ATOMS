@@ -1,5 +1,5 @@
 import numpy as np
-from atoms import LinearMPC
+from atoms.linearMPC import LinearMPC
 from matplotlib import pyplot as plt
 
 """
