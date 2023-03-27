@@ -1,13 +1,13 @@
 # Testing of the LinearMPC class from the ATOMS package
 import unittest
-from atoms.linearMPC import LinearMPC
+from atoms.supportVectorMachine import OneClassSVM
 
 
-class TestLinearMPC(unittest.TestCase):
+class TestOneClassSVM(unittest.TestCase):
 
-    def test_LinearMPC(self):
+    def test_OneClassSVM(self):
 
-        opti = LinearMPC()
+        svm = OneClassSVM()
 
         # verify if the object of the class is correct
         self.assertEqual('', '')
@@ -15,4 +15,4 @@ class TestLinearMPC(unittest.TestCase):
 
 if __name__ == '__main__':
     suite = unittest.TestSuite()
-    suite.addTest(TestLinearMPC('test_LinearMPC'))
+    suite.addTest(TestOneClassSVM('test_OneClassSVM'))

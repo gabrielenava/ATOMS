@@ -1,6 +1,7 @@
 import osqp
 import numpy as np
 from scipy import sparse as sp
+from atoms.atoms_helpers import Helpers
 
 
 class LinearMPC:
@@ -15,9 +16,13 @@ class LinearMPC:
                       x_min <= x(k) <= x_max
                       u_min <= u(k) <= u_max
     """
-    def __init__(self):
+    def __init__(self, debug=False):
         self.variables = {}
+        self.debug = debug
         self.solver = osqp.OSQP()
+
+        if debug:
+            self.logger = Helpers.init_logger()
 
     def __str__(self):
         return f" LinearMPC class object \n" \
@@ -111,6 +116,9 @@ class LinearMPC:
         # set up the OSQP problem
         self.solver.setup(P, q, A, l, u, warm_start=True)
 
+        if self.debug:
+            self.logger.debug('QP problem setup completed.')
+
     def update(self, **kwargs):
         """
         Update the MPC problem. Can update both the initial conditions and the reference state.
@@ -145,6 +153,9 @@ class LinearMPC:
 
         self.solver.update(q=q, l=l, u=u)
 
+        if self.debug:
+            self.logger.debug('QP problem update completed.')
+
     def solve(self):
         """
         Solve the MPC problem.
@@ -155,4 +166,6 @@ class LinearMPC:
         if res.info.status != 'solved':
             raise ValueError('OSQP did not solve the problem!')
         else:
+            if self.debug:
+                self.logger.debug('QP problem solved.')
             return res.x
