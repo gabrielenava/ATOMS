@@ -1,5 +1,7 @@
 # ATOMS
 
+[![Python Test](https://github.com/gabrielenava/ATOMS/actions/workflows/python-test.yml/badge.svg)](https://github.com/gabrielenava/ATOMS/actions/workflows/python-test.yml)
+
 Advanced Tools for Multi-Body Systems
 
 ATOMS is a Python-Based collection of useful tools to operate with systems of rigid bodies.
