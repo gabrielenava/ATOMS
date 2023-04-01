@@ -4,6 +4,8 @@ from atoms.atoms_helpers import Helpers
 from matplotlib import pyplot as plt
 
 """
+Example of a linear MPC problem, implemented with the LinearMPC class.
+
 Consider a discrete-time double integrator model of the form:
 
   x_1(k) = x_1(0) + sum_{j=1}^{k-1} x_2(j)
@@ -19,34 +21,35 @@ Setup a constrained linear-quadratic MPC problem to stabilize the system using m
 logger = Helpers.init_logger()
 logger.info('Example of linear MPC problem.')
 
-# set the state and input dimensions, initial time, and matrices A and B
+# set the state and input dimensions, initial time, and define matrices A and B
 n_x = 2
 n_u = 2
-time = 0
-
+time_init = 0
 A = np.block([[np.eye(n_x), np.eye(n_x)],
               [np.zeros((n_x, n_x)), np.eye(n_x)]])
 B = np.block([[np.zeros((n_x, n_u))], [np.eye(n_u)]])
 
-# set up the MPC problem
+# define all variables needed for setting up the MPC problem
 var = {}
 var.update({'N': 6})
-var.update({'Ax': A})
-var.update({'Bu': B})
-var.update({'QN': np.diag([20, 20, 10, 10], k=0)})
+var.update({'A': A})
+var.update({'B': B})
+var.update({'Q_N': np.diag([20, 20, 10, 10], k=0)})
 var.update({'Q': np.diag([2, 2, 1, 1], k=0)})
 var.update({'R': 15*np.eye(n_u)})
-var.update({'x_r': np.array([np.cos(2*np.pi*time), -np.cos(2*np.pi*time), 0, 0])})
+var.update({'x_r': np.array([np.cos(2*np.pi*time_init), -np.cos(2*np.pi*time_init), 0, 0])})
 var.update({'x_0': np.array([0.8, -0.8, 0, 0])})
 var.update({'x_min': np.array([-2*np.pi, -2*np.pi, -100*np.pi/180, -100*np.pi/180])})
 var.update({'x_max': np.array([2*np.pi,  2*np.pi,  100*np.pi/180,  100*np.pi/180])})
 var.update({'u_min': np.array([-5, -5])})
 var.update({'u_max': np.array([5, 5])})
 
-opti = LinearMPC()
+# create the linear MPC object and setup
+opti = LinearMPC(debug=True)
 opti.setup(var)
 
 # simulate the problem in closed loop
+time = time_init
 n_sim = 250
 y = np.zeros((n_sim, 2*n_x))
 y_r = np.zeros((n_sim, 2*n_x))
@@ -80,6 +83,8 @@ for i in range(n_x):
         axs[i, j].plot(range(n_sim), y[:, cont], range(n_sim), y_r[:, cont])
         axs[i, j].set_xlabel('iters')
         axs[i, j].set_ylabel('data')
+        # set legend
+        axs[i, j].legend(['measured', 'reference'], loc='upper left')
         axs[i, j].grid(True)
         fig.tight_layout()
         cont = cont + 1

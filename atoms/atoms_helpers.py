@@ -3,7 +3,7 @@ import logging
 
 class Helpers:
     """
-    Helpers class: collection of methods to be used in the other classes of the atoms package.
+    Helpers class: collection of methods to be used in the other classes of the ATOMS package.
     """
     def __init__(self):
         self.helpers_msg = 'ATOMS helpers object.'

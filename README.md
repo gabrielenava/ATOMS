@@ -17,7 +17,6 @@ ATOMS is a Python-Based collection of useful tools to operate with systems of ri
 
 - [LinearMPC](atoms/linearMPC.py)
 - [KalmanFilter](atoms/kalmanFilter.py)
-- [SupportVectorMachine](atoms/supportVectorMachine.py)
 
 ### Examples
 
