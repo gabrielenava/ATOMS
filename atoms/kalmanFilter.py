@@ -15,7 +15,6 @@ class KalmanFilter:
     with V, W, white, uncorrelated, zero mean noise on the process and on the measurements. The user is required to tune
     the covariance matrices Q and R for the process and measurements noise, respectively.
     """
-
     def __init__(self, debug=False):
         self.variables = {}
 
@@ -78,10 +77,10 @@ class KalmanFilter:
         self.variables['P'] = self.variables['P'] - dot(k_gain, dot(y_covariance, k_gain.T))
 
         # calculate the predictive probability of the measurements
-        y_predictive_prob = self.gauss_pdf(y_measured, y_mean_predicted, y_covariance)
+        y_predictive_prob = self.__gauss_pdf(y_measured, y_mean_predicted, y_covariance)
 
     @staticmethod
-    def gauss_pdf(X, M, S):
+    def __gauss_pdf(X, M, S):
         if M.shape()[1] == 1:
             DX = X - tile(M, X.shape()[1])
             E = 0.5 * sum(DX * (dot(inv(S), DX)), axis=0)
