@@ -7,6 +7,8 @@ from atoms.kalmanFilter import KalmanFilter
 class TestKalmanFilter(unittest.TestCase):
 
     def test_KalmanFilter(self):
+        
+        print('Run KF class test.')
 
         # initialization of state matrices
         A = np.eye(2)
