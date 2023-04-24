@@ -1,6 +1,6 @@
 import numpy
 from numpy import dot, sum, tile
-from numpy.linalg import inv
+from numpy.linalg import inv, det
 from atoms.atoms_helpers import Helpers
 
 
@@ -15,6 +15,7 @@ class KalmanFilter:
     with V, W, white, uncorrelated, zero mean noise on the process and on the measurements. The user is required to tune
     the covariance matrices Q and R for the process and measurements noise, respectively.
     """
+
     def __init__(self, debug=False):
         self.variables = {}
 
@@ -67,6 +68,7 @@ class KalmanFilter:
         - P = predicted state covariance at (k)
         - C = state to measurements matrix
         - R = measurements noise covariance matrix
+        Returns the predictive probability (likelihood) of the measurements.
         """
         y_mean_predicted = dot(self.variables['C'], self.variables['X'])
         y_covariance = self.variables['R'] + dot(self.variables['C'], dot(self.variables['P'], self.variables['C'].T))
@@ -75,25 +77,33 @@ class KalmanFilter:
         # correct the predicted state and covariance matrix
         self.variables['X'] = self.variables['X'] + dot(k_gain, (y_measured - y_mean_predicted))
         self.variables['P'] = self.variables['P'] - dot(k_gain, dot(y_covariance, k_gain.T))
+        x_estimated = self.variables['X']
 
         # calculate the predictive probability of the measurements
         y_predictive_prob = self.__gauss_pdf(y_measured, y_mean_predicted, y_covariance)
 
+        return x_estimated, y_predictive_prob
+
     @staticmethod
-    def __gauss_pdf(X, M, S):
-        if M.shape()[1] == 1:
-            DX = X - tile(M, X.shape()[1])
-            E = 0.5 * sum(DX * (dot(inv(S), DX)), axis=0)
-            E = E + 0.5 * M.shape()[0] * numpy.log(2 * numpy.pi) + 0.5 * numpy.log(numpy.det(S))
-            P = numpy.exp(-E)
-        elif X.shape()[1] == 1:
-            DX = tile(X, M.shape()[1]) - M
-            E = 0.5 * sum(DX * (dot(inv(S), DX)), axis=0)
-            E = E + 0.5 * M.shape()[0] * numpy.log(2 * numpy.pi) + 0.5 * numpy.log(numpy.det(S))
-            P = numpy.exp(-E)
+    def __gauss_pdf(y_measured, y_mean_predicted, y_covariance):
+
+        # see also https://arxiv.org/pdf/1204.0375.pdf
+        if y_mean_predicted.shape[1] == 1:
+            delta_y = y_measured - tile(y_mean_predicted, y_measured.shape[1])
+            E = 0.5 * sum(delta_y * (dot(inv(y_covariance), delta_y)), axis=0)
+            E = E + 0.5 * y_mean_predicted.shape[0] * numpy.log(2 * numpy.pi) + 0.5 * numpy.log(det(y_covariance))
+            y_predictive_prob = numpy.exp(-E)
+
+        elif y_measured.shape[1] == 1:
+            delta_y = tile(y_measured, y_mean_predicted.shape[1]) - y_mean_predicted
+            E = 0.5 * sum(delta_y * (dot(inv(y_covariance), delta_y)), axis=0)
+            E = E + 0.5 * y_mean_predicted.shape[0] * numpy.log(2 * numpy.pi) + 0.5 * numpy.log(det(y_covariance))
+            y_predictive_prob = numpy.exp(-E)
+
         else:
-            DX = X - M
-            E = 0.5 * dot(DX.T, dot(inv(S), DX))
-            E = E + 0.5 * M.shape()[0] * numpy.log(2 * numpy.pi) + 0.5 * numpy.log(numpy.det(S))
-            P = numpy.exp(-E)
-        return (P[0], E[0])
+            delta_y = y_measured - y_mean_predicted
+            E = 0.5 * dot(delta_y.T, dot(inv(y_covariance), delta_y))
+            E = E + 0.5 * y_mean_predicted.shape[0] * numpy.log(2 * numpy.pi) + 0.5 * numpy.log(det(y_covariance))
+            y_predictive_prob = numpy.exp(-E)
+
+        return y_predictive_prob
