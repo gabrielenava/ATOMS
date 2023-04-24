@@ -4,7 +4,7 @@
 
 Advanced Tools for Multi-Body Systems
 
-ATOMS is a Python-Based collection of useful tools to operate with systems of rigid bodies.
+ATOMS is a Python package that collects useful tools to operate with systems of rigid bodies.
 
 ### List of dependencies
 
