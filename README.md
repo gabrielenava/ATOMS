@@ -16,8 +16,8 @@ ATOMS is a Python package that collects useful tools to operate with systems of 
 
 ### Available classes
 
-- [LinearMPC](atoms/linearMPC.py): implements Model Predictive Control for linear systems using OSQP;
-- [KalmanFilter](atoms/kalmanFilter.py): implementation of the Kalman Filter;
+- [linearMPC](atoms/linearMPC.py): implements Model Predictive Control for linear systems using OSQP;
+- [kalmanFilter](atoms/kalmanFilter.py): implementation of the Kalman Filter;
 - [import_data](iNomaly/import_data.py): import, process, split and plot data in `.mat` format;
 - [atoms_helpers](iNomaly/inomaly_helpers.py): helpers methods and logger to be used in the other classes of the package;
 - [one_class_svm](iNomaly/one_class_svm.py): wrapper of the one class support vector machines (SVM) from scikit-learn.
