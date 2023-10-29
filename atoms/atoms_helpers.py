@@ -26,3 +26,20 @@ class Helpers:
         logger.addHandler(ch)
 
         return logger
+
+    @staticmethod
+    def check_if_list_or_string(data):
+
+        if isinstance(data, str):
+            return 'str'
+        elif isinstance(data, list):
+            return 'list'
+        else:
+            raise ValueError('[check_if_list_or_string] input data is not a list or string.')
+
+    @staticmethod
+    def check_if_data_in_list(list_name, data_name):
+        if data_name in list_name:
+            return True
+        else:
+            return False
