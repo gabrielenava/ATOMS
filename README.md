@@ -30,7 +30,14 @@ See also the [examples](examples) folder.
 
 Tested on Ubuntu 20.04 LTS.
 
-Git clone the repository and run the file `setup.py` to install the required dependencies.
+Firstly, `git clone` this repository. To install the dependencies in a venv virtual environment run:
+
+```
+python -m venv rlgainenv
+source ./rlgainenv/bin/activate
+```
+
+then, run the command `python3 setup.py install`or `pip install -r requirements.txt` to install the required dependencies.
 
 #### Maintainer
 

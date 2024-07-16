@@ -1,5 +1,4 @@
-import numpy
-from numpy import dot, sum, tile
+import numpy as np
 from numpy.linalg import inv, det
 from atoms.atoms_helpers import Helpers
 
@@ -18,6 +17,7 @@ class KalmanFilter:
 
     def __init__(self, debug=False):
         self.variables = {}
+        self.debug = debug
 
         if debug:
             self.logger = Helpers.init_logger()
@@ -38,10 +38,10 @@ class KalmanFilter:
             if var in var_keys:
                 self.variables.update({var: variables[var]})
             else:
-                raise ValueError('Required variable', var, 'not found in the input dictionary.')
+                raise ValueError(f'Required variable {var} not found in the input dictionary.')
 
-        # add matrix P to the variables dictionary
-        self.variables.update({'P': numpy.zeros(variables['Q'].shape)})
+        # Initialize matrix P to the identity matrix scaled by a large number
+        self.variables.update({'P': np.eye(variables['Q'].shape[0]) * 1000})
 
     def predict(self):
         """
@@ -54,11 +54,14 @@ class KalmanFilter:
         - Q = process noise covariance matrix
         """
         # calculate X(k) from (k-1) quantities
-        self.variables['X'] = dot(self.variables['A'], self.variables['X']) + dot(self.variables['B'],
-                                                                                  self.variables['U'])
+        self.variables['X'] = self.variables['A'] @ self.variables['X'] + self.variables['B'] @ self.variables['U']
+
         # calculate the state covariance P(k) from (k-1) quantities
-        self.variables['P'] = dot(self.variables['A'], dot(self.variables['P'],
-                                                           self.variables['A'].T)) + self.variables['Q']
+        self.variables['P'] = self.variables['A'] @ self.variables['P'] @ self.variables['A'].T + self.variables['Q']
+
+        if self.debug:
+            self.logger.info(f"Predicted state X: {self.variables['X']}")
+            self.logger.info(f"Predicted state covariance P: {self.variables['P']}")
 
     def update(self, y_measured):
         """
@@ -70,40 +73,30 @@ class KalmanFilter:
         - R = measurements noise covariance matrix
         Returns the predictive probability (likelihood) of the measurements.
         """
-        y_mean_predicted = dot(self.variables['C'], self.variables['X'])
-        y_covariance = self.variables['R'] + dot(self.variables['C'], dot(self.variables['P'], self.variables['C'].T))
-        k_gain = dot(self.variables['P'], dot(self.variables['C'].T, inv(y_covariance)))
+        y_mean_predicted = self.variables['C'] @ self.variables['X']
+        y_covariance = self.variables['R'] + self.variables['C'] @ self.variables['P'] @ self.variables['C'].T
+        k_gain = self.variables['P'] @ self.variables['C'].T @ inv(y_covariance)
 
         # correct the predicted state and covariance matrix
-        self.variables['X'] = self.variables['X'] + dot(k_gain, (y_measured - y_mean_predicted))
-        self.variables['P'] = self.variables['P'] - dot(k_gain, dot(y_covariance, k_gain.T))
+        self.variables['X'] = self.variables['X'] + k_gain @ (y_measured - y_mean_predicted)
+        self.variables['P'] = self.variables['P'] - k_gain @ self.variables['C'] @ self.variables['P']
         x_estimated = self.variables['X']
 
         # calculate the predictive probability of the measurements
         y_predictive_prob = self.__gauss_pdf(y_measured, y_mean_predicted, y_covariance)
 
+        if self.debug:
+            self.logger.info(f"Updated state X: {self.variables['X']}")
+            self.logger.info(f"Updated state covariance P: {self.variables['P']}")
+            self.logger.info(f"Kalman Gain K: {k_gain}")
+            self.logger.info(f"Predictive probability: {y_predictive_prob}")
+
         return x_estimated, y_predictive_prob
 
     @staticmethod
     def __gauss_pdf(y_measured, y_mean_predicted, y_covariance):
-
-        # see also https://arxiv.org/pdf/1204.0375.pdf
-        if y_mean_predicted.shape[1] == 1:
-            delta_y = y_measured - tile(y_mean_predicted, y_measured.shape[1])
-            E = 0.5 * sum(delta_y * (dot(inv(y_covariance), delta_y)), axis=0)
-            E = E + 0.5 * y_mean_predicted.shape[0] * numpy.log(2 * numpy.pi) + 0.5 * numpy.log(det(y_covariance))
-            y_predictive_prob = numpy.exp(-E)
-
-        elif y_measured.shape[1] == 1:
-            delta_y = tile(y_measured, y_mean_predicted.shape[1]) - y_mean_predicted
-            E = 0.5 * sum(delta_y * (dot(inv(y_covariance), delta_y)), axis=0)
-            E = E + 0.5 * y_mean_predicted.shape[0] * numpy.log(2 * numpy.pi) + 0.5 * numpy.log(det(y_covariance))
-            y_predictive_prob = numpy.exp(-E)
-
-        else:
-            delta_y = y_measured - y_mean_predicted
-            E = 0.5 * dot(delta_y.T, dot(inv(y_covariance), delta_y))
-            E = E + 0.5 * y_mean_predicted.shape[0] * numpy.log(2 * numpy.pi) + 0.5 * numpy.log(det(y_covariance))
-            y_predictive_prob = numpy.exp(-E)
-
+        delta_y = y_measured - y_mean_predicted
+        exponent = -0.5 * delta_y.T @ inv(y_covariance) @ delta_y
+        normalization = 0.5 * len(y_mean_predicted) * np.log(2 * np.pi) + 0.5 * np.log(det(y_covariance))
+        y_predictive_prob = np.exp(exponent - normalization)
         return y_predictive_prob

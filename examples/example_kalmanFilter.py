@@ -4,81 +4,91 @@ from atoms.atoms_helpers import Helpers
 from atoms.kalmanFilter import KalmanFilter
 
 """
-In the example code we use KF to track a mobile user connected to a wireless network. The discrete-time dynamical 
-system is given by:
+Example of using Kalman Filter to track a mobile user connected to a wireless network. 
+The discrete-time dynamical system is given by:
 
  X(k+1) = A*X(k) + B*U(k)
- 
-The matrix of measurement Y describes the estimated position of the mobile:
- 
+
+The measurement matrix Y describes the estimated position of the mobile:
+
  Y(k) = C*X(k)
- 
-We plot the estimated, the real trajectory of the mobile user, and the measurements.
+
+We plot the estimated trajectory, the real trajectory, and the noisy measurements.
 """
+
+# Initialize logger
 logger = Helpers.init_logger()
 logger.info('Example of Kalman Filter estimation.')
 
-# time step of mobile user movement
-dt = 0.1
+# Time step of mobile user movement
+dt = 0.01
 
-# initialization of state matrices
-A = np.array([[1, 0, dt, 0], [0, 1, 0, dt], [0, 0, 1, 0], [0, 0, 0, 1]])
-X = np.array([[0.0], [0.0], [0.1], [0.1]])
+# Initialization of state matrices
+A = np.array([
+    [1, 0, dt, 0],
+    [0, 1, 0, dt],
+    [0, 0, 1, 0],
+    [0, 0, 0, 1]
+])
+X = np.array([[0.0], [0.0], [0.1], [0.1]])  # Initial state
 B = np.eye(X.shape[0])
-U = np.zeros((X.shape[0], 1))
+U = np.zeros((X.shape[0], 1))  # Control input
 
-# process noise covariance matrix and initial state covariance
+# Process noise covariance matrix
 Q = np.eye(X.shape[0])
-P = np.diag((0.01, 0.01, 0.01, 0.01))
 
-# measurement matrices (state X plus a random gaussian noise)
-Y = np.array([[X[0, 0] + abs(np.random.randn(1)[0])], [X[1, 0] + abs(np.random.randn(1)[0])]])
+# Measurement matrix (state X plus a random Gaussian noise)
 C = np.array([[1, 0, 0, 0], [0, 1, 0, 0]])
 
-# measurement noise covariance
-R = np.eye(Y.shape[0])
+# Measurement noise covariance
+R = np.eye(C.shape[0])
 
-# Set up the KF class and simulate the estimation process
+# Set up the Kalman Filter class
 logger.info('Setting up the KF class...')
+variables = {
+    'X': X, 'A': A, 'B': B, 'U': U, 'Q': Q, 'C': C, 'R': R
+}
+kf = KalmanFilter(debug=True)
+kf.setup(variables)
 
-var = {}
-var.update({'X': X})
-var.update({'A': A})
-var.update({'B': B})
-var.update({'U': U})
-var.update({'Q': Q})
-var.update({'C': C})
-var.update({'R': R})
-
-kf = KalmanFilter()
-kf.setup(var)
-
-# number of iterations in Kalman Filter
+# Number of iterations in Kalman Filter
 n_iter = 50
-y_predictive_prob = np.zeros((n_iter, 1))
+y_measured = np.zeros((C.shape[0], n_iter))
 x_estimated = np.zeros((X.shape[0], n_iter))
 
 # Applying the Kalman Filter
-for i in np.arange(0, n_iter):
+for i in range(n_iter):
     kf.predict()
-    x_est, y_predict = kf.update(Y)
-    x_estimated[0:4, i] = x_est.reshape(1, -1)
-    y_predictive_prob[i, 0] = y_predict.reshape(1, -1)
-    Y = np.array([[X[0, 0] + abs(0.1 * np.random.randn(1)[0])], [X[1, 0] + abs(0.1 * np.random.randn(1)[0])]])
+    # Simulate measurement with some noise
+    Y = C @ X + np.random.normal(0, 0.1, (C.shape[0], 1))
+    y_measured[:, i] = Y.flatten()
+
+    x_est, _ = kf.update(Y)
+    x_estimated[:, i] = x_est.flatten()
+
+    # Simulate real system's next state (for demonstration purposes)
+    X = A @ X + B @ U
 
 logger.info('Estimation complete.')
 
 # Plot the results
 logger.info('Plotting results ...')
+time = np.arange(0, n_iter * dt, dt)
 
-time = np.arange(0, 50*dt, dt)
-x_estimated = x_estimated.transpose()
-plt.figure()
-plt.plot(time, x_estimated)
-plt.xlabel('Time')
-plt.ylabel('State (X)')
-plt.title('KF results')
-plt.legend(['x1', 'x2', 'x3', 'x4'], loc='upper right')
+fig, axs = plt.subplots(2, 2, figsize=(10, 8))
+
+# Plot each state variable
+for i in range(X.shape[0]):
+    row, col = divmod(i, 2)
+    axs[row, col].plot(time, x_estimated[i, :], label='Estimated')
+    axs[row, col].scatter(time, y_measured[i % 2, :], s=10, color='r', label='Measured', alpha=0.6)
+    axs[row, col].set_xlabel('Time [s]')
+    axs[row, col].set_ylabel(f'State X{i + 1}')
+    axs[row, col].legend(loc='upper right')
+    axs[row, col].grid(True)
+
+fig.suptitle('Kalman Filter Results')
+plt.tight_layout(rect=[0, 0, 1, 0.96])
 plt.show()
 
 logger.info('Done!')
