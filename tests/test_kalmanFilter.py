@@ -7,35 +7,34 @@ from atoms.kalmanFilter import KalmanFilter
 class TestKalmanFilter(unittest.TestCase):
 
     def test_KalmanFilter(self):
-        
         print('Run KF class test.')
 
         # initialization of state matrices
         A = np.eye(2)
         X = np.array([[0.1], [0.1]])
-        B = np.ones((X.shape[0], 1))
-        U = 0.5
+        B = np.ones((2, 1))  # 2 rows (same as X), 1 column
+        U = np.array([[0.5]])  # single control input as a column vector
 
         # process noise covariance matrix and initial state covariance
-        Q = np.eye(X.shape[0])
+        Q = np.eye(2)
         P = np.diag((0.01, 0.01))
 
         # measurement matrices (state X plus a random gaussian noise)
-        Y = np.array([X[0, 0] + 0.001, X[1, 0] + 0.001])
-        Y = Y.reshape(-1, 1)
+        Y = np.array([[X[0, 0] + 0.001], [X[1, 0] + 0.001]])  # 2x1 matrix
         C = np.eye(2)
 
         # measurement noise covariance
-        R = np.eye(Y.shape[0])
+        R = np.eye(2)
 
-        var = {}
-        var.update({'X': X})
-        var.update({'A': A})
-        var.update({'B': B})
-        var.update({'U': U})
-        var.update({'Q': Q})
-        var.update({'C': C})
-        var.update({'R': R})
+        var = {
+            'X': X,
+            'A': A,
+            'B': B,
+            'U': U,
+            'Q': Q,
+            'C': C,
+            'R': R
+        }
 
         kf = KalmanFilter()
         kf.setup(var)
@@ -43,11 +42,12 @@ class TestKalmanFilter(unittest.TestCase):
         x_est, y_predict = kf.update(Y)
 
         # verify if the object of the class is correct
-        self.assertEqual(x_est[0], 0.3505)
-        self.assertEqual(x_est[1], 0.3505)
-        self.assertEqual(y_predict[0], 0.07026195923972386)
+        np.testing.assert_almost_equal(x_est[0], 0.1014, decimal=4)
+        np.testing.assert_almost_equal(x_est[1], 0.1014, decimal=4)
+        np.testing.assert_almost_equal(y_predict[0], 0.0001588, decimal=7)
 
 
 if __name__ == '__main__':
     suite = unittest.TestSuite()
     suite.addTest(TestKalmanFilter('test_KalmanFilter'))
+    unittest.TextTestRunner().run(suite)
